@@ -50,7 +50,7 @@ class BluetoothApneaService //extends Service
     private ConnectedThread mConnectedThread;
     private BluetoothDevice device; //do we need this?
     private int mState;
-	private Context mContext; // reqd?
+	//private Context mContext; // reqd?
 
     // Constants that indicate the current connection state
     public static final int STATE_NONE = 0;       // we're doing nothing
@@ -67,7 +67,7 @@ class BluetoothApneaService //extends Service
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
         mHandler = handler;
-        mContext = ctx;
+        //mContext = ctx;
     }
 
     /**
@@ -431,16 +431,21 @@ class BluetoothApneaService //extends Service
 	            		testing = waitForAck;
 	            		Log.d(TAG, "read wfa "+testing);
 	            	}
-            		Log.d(TAG,sync+" "+sync.hashCode());
-	            	if(!testing) {
+            		/*Log.d(TAG,sync+" "+sync.hashCode());
+	            	if(!testing) {*/
 	            		Log.d(TAG,"no need to wait for ack");
 	            		double value = in.nextDouble();
-	            		tds.appendToBuffer(value);
-	            		Thread.sleep(1000-System.currentTimeMillis()%1000);
-	            	}
+	            		if(value == 0)
+	            			call();
+	            		else if(value == 1)
+	            			continue;
+	            		else if(!testing)
+	            			tds.appendToBuffer(value);
+	            		//Thread.sleep(1000-System.currentTimeMillis()%1000);
+	            	/*}
 	            	else {
-	            		handleAck(in);
-	            	}
+	            		handleAck(in,(byte)2);
+	            	}*/
 	            	//}
 	            } catch (Exception e) {
 	                Log.e(TAG, "disconnected : connectionLost", e);
@@ -486,27 +491,46 @@ class BluetoothApneaService //extends Service
             }
         }
         
-        private void handleAck(Scanner in){
+        private void call(){
+			Log.d(TAG,"max height reached");
+			waitForAck = true;
+			mHandler.obtainMessage(BluetoothMessageConstant.MESSAGE_CALL).sendToTarget();
+			//get phone no to call
+			/*SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
+			String phnoPref = sharedPref.getString(mContext.getString(R.string.pref_phno), "");
+			//start intent to call caretaker
+			Intent phint = new Intent(Intent.ACTION_CALL);
+			phint.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			phint.setData(Uri.parse("tel:"+phnoPref));
+			//Context context = new ContextWrapper(null);
+			mContext.startActivity(phint); //need context
+			//should device be stopped here?
+			BluetoothApneaService.this.stop();*/
+        }
+        
+        /*private void handleAck(Scanner in, byte value){
         	try {
         		Log.d(TAG,"waiting for ack");
         		long before = System.currentTimeMillis();
         		//read ack
-        		byte value = in.nextByte();
+        		if(value == 2)
+        			value = in.nextByte();
         		long after = System.currentTimeMillis();
-        		Log.d(TAG,"after - before: "+(after-before));
+        		Log.d(TAG,"after - before: "+(after-before)+" recd : "+value);
         		//if pillow has reached max height
-        		if(value == -1){
+        		if(value == 0){
         			Log.d(TAG,"max height reached");
         			//get phone no to call
         			SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
         			String phnoPref = sharedPref.getString(mContext.getString(R.string.pref_phno), "");
         			//start intent to call caretaker
     				Intent phint = new Intent(Intent.ACTION_CALL);
+    				phint.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     				phint.setData(Uri.parse("tel:"+phnoPref));
     				//Context context = new ContextWrapper(null);
     				mContext.startActivity(phint); //need context
     				//should device be stopped here?
-    				//stop(); ??
+    				BluetoothApneaService.this.stop();
         		}
         		// successfully raised pillow. ack = 1
         		else if(value == 1) {
@@ -530,7 +554,7 @@ class BluetoothApneaService //extends Service
         	} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-        }
+        }*/
     }
 }
 
@@ -547,12 +571,13 @@ now it is read at the right time : after being set, but still not working
 created local var which is set to waitforack
 works! but failure still possible if threads interleave in a certain manner
 failed! that sort of interleaving did happen see log4.txt
+getting sigsegv now.
  */
 /*
 //pillow values
 private int height = 0;
 private final int maxheight = 3;
-
+//not maintained here anymore
 int count = 4; //wait for
 int value = 0; //assume failed
 //waiting for ack
